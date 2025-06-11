@@ -5,7 +5,7 @@ import yaml
 import pickle
 from tqdm import tqdm
 from PIL import Image as pil_image
-import dlib
+# import dlib
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -16,7 +16,7 @@ from trainer.trainer import Trainer
 from detectors import DETECTOR
 from collections import defaultdict
 from PIL import Image as pil_image
-from imutils import face_utils
+# from imutils import face_utils
 from skimage import transform as trans
 import torchvision.transforms as T
 import os
@@ -63,92 +63,92 @@ def get_keypts(image, face, predictor, face_detector):
 
     return pts
 
-def extract_aligned_face_dlib(face_detector, predictor, image, res=224, mask=None):
-    def img_align_crop(img, landmark=None, outsize=None, scale=1.3, mask=None):
-        """ 
-        align and crop the face according to the given bbox and landmarks
-        landmark: 5 key points
-        """
+# def extract_aligned_face_dlib(face_detector, predictor, image, res=224, mask=None):
+#     def img_align_crop(img, landmark=None, outsize=None, scale=1.3, mask=None):
+#         """ 
+#         align and crop the face according to the given bbox and landmarks
+#         landmark: 5 key points
+#         """
 
-        M = None
-        target_size = [112, 112]
-        dst = np.array([
-            [30.2946, 51.6963],
-            [65.5318, 51.5014],
-            [48.0252, 71.7366],
-            [33.5493, 92.3655],
-            [62.7299, 92.2041]], dtype=np.float32)
+#         M = None
+#         target_size = [112, 112]
+#         dst = np.array([
+#             [30.2946, 51.6963],
+#             [65.5318, 51.5014],
+#             [48.0252, 71.7366],
+#             [33.5493, 92.3655],
+#             [62.7299, 92.2041]], dtype=np.float32)
 
-        if target_size[1] == 112:
-            dst[:, 0] += 8.0
+#         if target_size[1] == 112:
+#             dst[:, 0] += 8.0
 
-        dst[:, 0] = dst[:, 0] * outsize[0] / target_size[0]
-        dst[:, 1] = dst[:, 1] * outsize[1] / target_size[1]
+#         dst[:, 0] = dst[:, 0] * outsize[0] / target_size[0]
+#         dst[:, 1] = dst[:, 1] * outsize[1] / target_size[1]
 
-        target_size = outsize
+#         target_size = outsize
 
-        margin_rate = scale - 1
-        x_margin = target_size[0] * margin_rate / 2.
-        y_margin = target_size[1] * margin_rate / 2.
+#         margin_rate = scale - 1
+#         x_margin = target_size[0] * margin_rate / 2.
+#         y_margin = target_size[1] * margin_rate / 2.
 
-        # move
-        dst[:, 0] += x_margin
-        dst[:, 1] += y_margin
+#         # move
+#         dst[:, 0] += x_margin
+#         dst[:, 1] += y_margin
 
-        # resize
-        dst[:, 0] *= target_size[0] / (target_size[0] + 2 * x_margin)
-        dst[:, 1] *= target_size[1] / (target_size[1] + 2 * y_margin)
+#         # resize
+#         dst[:, 0] *= target_size[0] / (target_size[0] + 2 * x_margin)
+#         dst[:, 1] *= target_size[1] / (target_size[1] + 2 * y_margin)
 
-        src = landmark.astype(np.float32)
+#         src = landmark.astype(np.float32)
 
-        # use skimage tranformation
-        tform = trans.SimilarityTransform()
-        tform.estimate(src, dst)
-        M = tform.params[0:2, :]
+#         # use skimage tranformation
+#         tform = trans.SimilarityTransform()
+#         tform.estimate(src, dst)
+#         M = tform.params[0:2, :]
 
-        # M: use opencv
-        # M = cv2.getAffineTransform(src[[0,1,2],:],dst[[0,1,2],:])
+#         # M: use opencv
+#         # M = cv2.getAffineTransform(src[[0,1,2],:],dst[[0,1,2],:])
 
-        img = cv2.warpAffine(img, M, (target_size[1], target_size[0]))
+#         img = cv2.warpAffine(img, M, (target_size[1], target_size[0]))
 
-        if outsize is not None:
-            img = cv2.resize(img, (outsize[1], outsize[0]))
+#         if outsize is not None:
+#             img = cv2.resize(img, (outsize[1], outsize[0]))
         
-        if mask is not None:
-            mask = cv2.warpAffine(mask, M, (target_size[1], target_size[0]))
-            mask = cv2.resize(mask, (outsize[1], outsize[0]))
-            return img, mask
-        else:
-            return img
+#         if mask is not None:
+#             mask = cv2.warpAffine(mask, M, (target_size[1], target_size[0]))
+#             mask = cv2.resize(mask, (outsize[1], outsize[0]))
+#             return img, mask
+#         else:
+#             return img
 
-    # Image size
-    height, width = image.shape[:2]
+#     # Image size
+#     height, width = image.shape[:2]
 
-    # Convert to rgb
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+#     # Convert to rgb
+#     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    # Detect with dlib
-    faces = face_detector(rgb, 1)
-    if len(faces):
-        # For now only take the biggest face
-        face = max(faces, key=lambda rect: rect.width() * rect.height())
+#     # Detect with dlib
+#     faces = face_detector(rgb, 1)
+#     if len(faces):
+#         # For now only take the biggest face
+#         face = max(faces, key=lambda rect: rect.width() * rect.height())
         
-        # Get the landmarks/parts for the face in box d only with the five key points
-        landmarks = get_keypts(rgb, face, predictor, face_detector)
+#         # Get the landmarks/parts for the face in box d only with the five key points
+#         landmarks = get_keypts(rgb, face, predictor, face_detector)
 
-        # Align and crop the face
-        cropped_face = img_align_crop(rgb, landmarks, outsize=(res, res), mask=mask)
-        cropped_face = cv2.cvtColor(cropped_face, cv2.COLOR_RGB2BGR)
+#         # Align and crop the face
+#         cropped_face = img_align_crop(rgb, landmarks, outsize=(res, res), mask=mask)
+#         cropped_face = cv2.cvtColor(cropped_face, cv2.COLOR_RGB2BGR)
         
-        # Extract the all landmarks from the aligned face
-        face_align = face_detector(cropped_face, 1)
-        landmark = predictor(cropped_face, face_align[0])
-        landmark = face_utils.shape_to_np(landmark)
+#         # Extract the all landmarks from the aligned face
+#         face_align = face_detector(cropped_face, 1)
+#         landmark = predictor(cropped_face, face_align[0])
+#         landmark = face_utils.shape_to_np(landmark)
 
-        return cropped_face, landmark,face
+#         return cropped_face, landmark,face
     
-    else:
-        return None, None
+#     else:
+#         return None, None
 
 
 def load_detector(detector_cfg: str, weights: str):
@@ -190,9 +190,10 @@ def infer_single_image(
     if face_detector is None or landmark_predictor is None:
         face_aligned = img_bgr
     else:
-        face_aligned, _, _ = extract_aligned_face_dlib(
-            face_detector, landmark_predictor, img_bgr, res=224
-        )
+        face_aligned = img_bgr
+        # face_aligned, _, _ = extract_aligned_face_dlib(
+        #     face_detector, landmark_predictor, img_bgr, res=224
+        # )
 
     face_tensor = preprocess_face(face_aligned).to(device)
     data = {"image": face_tensor, "label": torch.tensor([0]).to(device)}
@@ -240,8 +241,9 @@ def main():
 
     model = load_detector(args.detector_config, args.weights)
     if args.landmark_model:
-        face_det = dlib.get_frontal_face_detector()
-        shape_predictor = dlib.shape_predictor(args.landmark_model)
+        face_det, shape_predictor = None, None
+        # face_det = dlib.get_frontal_face_detector()
+        # shape_predictor = dlib.shape_predictor(args.landmark_model)
     else:
         face_det, shape_predictor = None, None
 
